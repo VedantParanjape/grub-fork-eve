@@ -29,12 +29,45 @@
 
 static void *loaded_fdt;
 static void *fdt;
+static grub_efi_guid_t dt_fixup_guid = GRUB_EFI_DT_FIXUP_PROTOCOL_GUID;
 
 #define FDT_ADDR_CELLS_STRING "#address-cells"
 #define FDT_SIZE_CELLS_STRING "#size-cells"
 #define FDT_ADDR_SIZE_EXTRA ((2 * grub_fdt_prop_entry_size (sizeof(grub_uint32_t))) + \
                              sizeof (FDT_ADDR_CELLS_STRING) + \
                              sizeof (FDT_SIZE_CELLS_STRING))
+
+static void *grub_fdt_fixup (void)
+{
+  grub_efi_dt_fixup_t *dt_fixup_prot;
+  grub_efi_uintn_t size = 0;
+  grub_efi_status_t status;
+  void *fixup_fdt;
+
+  dt_fixup_prot = grub_efi_locate_protocol (&dt_fixup_guid, 0);
+  if (! dt_fixup_prot)
+    return loaded_fdt;
+
+  grub_dprintf ("linux", "EFI_DT_FIXUP_PROTOCOL available\n");
+
+  status = efi_call_4 (dt_fixup_prot->fixup, dt_fixup_prot, loaded_fdt, &size,
+		       GRUB_EFI_DT_APPLY_FIXUPS | GRUB_EFI_DT_RESERVE_MEMORY);
+  if (status != GRUB_EFI_BUFFER_TOO_SMALL)
+    return loaded_fdt;
+
+  fixup_fdt = grub_realloc (loaded_fdt, size);
+  if (!fixup_fdt)
+    return loaded_fdt;
+  loaded_fdt = fixup_fdt;
+
+  status = efi_call_4 (dt_fixup_prot->fixup, dt_fixup_prot, loaded_fdt, &size,
+		       GRUB_EFI_DT_APPLY_FIXUPS | GRUB_EFI_DT_RESERVE_MEMORY);
+
+  if (status == GRUB_EFI_SUCCESS)
+    grub_dprintf ("linux", "Device tree fixed up via EFI_DT_FIXUP_PROTOCOL\n");
+
+  return loaded_fdt;
+}
 
 void *
 grub_fdt_load (grub_size_t additional_size)
@@ -49,7 +82,7 @@ grub_fdt_load (grub_size_t additional_size)
     }
 
   if (loaded_fdt)
-    raw_fdt = loaded_fdt;
+    raw_fdt = grub_fdt_fixup();
   else
     raw_fdt = grub_efi_get_firmware_fdt();
 

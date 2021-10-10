@@ -37,7 +37,6 @@ grub_machine_smbios_get_eps (void)
 	return (struct grub_smbios_eps *)
 	  grub_efi_system_table->configuration_table[i].vendor_table;
     }
-
   return 0;
 }
 
@@ -56,6 +55,5 @@ grub_machine_smbios_get_eps3 (void)
 	return (struct grub_smbios_eps3 *)
 	  grub_efi_system_table->configuration_table[i].vendor_table;
     }
-
   return 0;
 }

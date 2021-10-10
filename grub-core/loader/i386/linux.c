@@ -650,12 +650,13 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   grub_file_t file = 0;
   struct linux_i386_kernel_header lh;
   grub_uint8_t setup_sects;
-  grub_size_t real_size, prot_size, prot_file_size;
+  grub_size_t real_size, prot_size, prot_file_size, kernel_offset;
   grub_ssize_t len;
   int i;
   grub_size_t align, min_align;
   int relocatable;
   grub_uint64_t preferred_address = GRUB_LINUX_BZIMAGE_ADDR;
+  grub_uint8_t *kernel = NULL;
 
   grub_dl_ref (my_mod);
 
@@ -669,13 +670,28 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   if (! file)
     goto fail;
 
-  if (grub_file_read (file, &lh, sizeof (lh)) != sizeof (lh))
+  len = grub_file_size (file);
+  kernel = grub_malloc (len);
+  if (!kernel)
+    {
+      grub_error (GRUB_ERR_OUT_OF_MEMORY, N_("cannot allocate kernel buffer"));
+      goto fail;
+    }
+
+  if (grub_file_read (file, kernel, len) != len)
     {
       if (!grub_errno)
 	grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
 		    argv[0]);
       goto fail;
     }
+
+  grub_tpm_measure (kernel, len, GRUB_BINARY_PCR, "grub_linux", "Kernel");
+  grub_print_error();
+
+  grub_memcpy (&lh, kernel, sizeof (lh));
+
+  kernel_offset = sizeof (lh);
 
   if (lh.boot_flag != grub_cpu_to_le16_compile_time (0xaa55))
     {
@@ -853,7 +869,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
 
   /* The other parameters are filled when booting.  */
 
-  grub_file_seek (file, real_size + GRUB_DISK_SECTOR_SIZE);
+  kernel_offset = real_size + GRUB_DISK_SECTOR_SIZE;
 
   grub_dprintf ("linux", "bzImage, setup=0x%x, size=0x%x\n",
 		(unsigned) real_size, (unsigned) prot_size);
@@ -1006,10 +1022,10 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
       goto fail;
   }
 
+  grub_pass_verity_hash(&lh, linux_cmdline, maximal_cmdline_size);
   len = prot_file_size;
-  if (grub_file_read (file, prot_mode_mem, len) != len && !grub_errno)
-    grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
-		argv[0]);
+  grub_memcpy (prot_mode_mem, kernel + kernel_offset, len);
+  kernel_offset += len;
 
   if (grub_errno == GRUB_ERR_NONE)
     {
@@ -1019,6 +1035,8 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
     }
 
  fail:
+
+  grub_free (kernel);
 
   if (file)
     grub_file_close (file);

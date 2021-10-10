@@ -46,6 +46,20 @@ static const struct grub_arg_option options[] =
     {0, 0, 0, 0, 0, 0}
   };
 
+static grub_ssize_t
+pseudo_read (struct grub_file *file, char *buf, grub_size_t len)
+{
+  grub_memcpy (buf, (grub_uint8_t *) file->data + file->offset, len);
+  return len;
+}
+
+/* Filesystem descriptor.  */
+struct grub_fs pseudo_fs =
+  {
+    .name = "pseudo",
+    .fs_read = pseudo_read
+};
+
 static grub_err_t
 read_packet_header (grub_file_t sig, grub_uint8_t *out_type, grub_size_t *len)
 {
@@ -760,6 +774,64 @@ grub_cmd_trust (grub_extcmd_context_t ctxt,
 }
 
 static grub_err_t
+grub_cmd_trust_var (grub_command_t cmd __attribute__ ((unused)),
+		    int argc, char **args)
+{
+  struct grub_file pseudo_file;
+  const char *var;
+  char *data;
+  struct grub_public_key *pk = NULL;
+  unsigned int i, idx0, idx1;
+
+  if (argc < 1)
+    return grub_error (GRUB_ERR_BAD_ARGUMENT, N_("one argument expected"));
+
+  var = grub_env_get (args[0]);
+  if (!var)
+    return grub_error (GRUB_ERR_BAD_ARGUMENT, N_("unknown variable"));
+
+  data = grub_zalloc (grub_strlen (var) / 2);
+  if (!data)
+    return grub_error (GRUB_ERR_OUT_OF_MEMORY, N_("can't allocate memory for key"));
+
+  /* For the want of sscanf() */
+  for (i = 0; i < grub_strlen (var); i += 2)
+    {
+      if (var[i] < 0x40)
+	idx0 = var[i] - 0x30;
+      else
+	idx0 = var[i] - 0x57;
+
+      if (var[i+1] < 0x40)
+	idx1 = var[i+1] - 0x30;
+      else
+	idx1 = var[i+1] - 0x57;
+
+      data[i/2] = ((idx0 << 4) & 0xf0) | (idx1 & 0x0f);
+    }
+
+  grub_memset (&pseudo_file, 0, sizeof (pseudo_file));
+
+  pseudo_file.fs = &pseudo_fs;
+  pseudo_file.size = grub_strlen (var) / 2;
+  pseudo_file.data = data;
+
+  pk = grub_load_public_key (&pseudo_file);
+  if (!pk)
+    {
+      grub_free(data);
+      return grub_errno;
+    }
+
+  pk->next = grub_pk_trusted;
+  grub_pk_trusted = pk;
+
+  grub_free(data);
+  return GRUB_ERR_NONE;
+
+}
+
+static grub_err_t
 grub_cmd_list (grub_command_t cmd  __attribute__ ((unused)),
 	       int argc __attribute__ ((unused)),
 	       char **args __attribute__ ((unused)))
@@ -947,7 +1019,7 @@ struct grub_file_verifier grub_pubkey_verifier =
   };
 
 static grub_extcmd_t cmd, cmd_trust;
-static grub_command_t cmd_distrust, cmd_list;
+static grub_command_t cmd_trust_var, cmd_distrust, cmd_list;
 
 GRUB_MOD_INIT(pgp)
 {
@@ -998,6 +1070,9 @@ GRUB_MOD_INIT(pgp)
 				     N_("[-s|--skip-sig] PUBKEY_FILE"),
 				     N_("Add PUBKEY_FILE to trusted keys."),
 				     options);
+  cmd_trust_var = grub_register_command ("trust_var", grub_cmd_trust_var,
+					 N_("PUBKEY_VAR"),
+					 N_("Add the contents of PUBKEY_VAR to trusted keys."));
   cmd_list = grub_register_command ("list_trusted", grub_cmd_list,
 				    0,
 				    N_("Show the list of trusted keys."));
@@ -1013,6 +1088,7 @@ GRUB_MOD_FINI(pgp)
   grub_verifier_unregister (&grub_pubkey_verifier);
   grub_unregister_extcmd (cmd);
   grub_unregister_extcmd (cmd_trust);
+  grub_unregister_command (cmd_trust_var);
   grub_unregister_command (cmd_list);
   grub_unregister_command (cmd_distrust);
 }

@@ -30,10 +30,14 @@ grub_machine_efiemu_init_tables (void)
   void *table;
   grub_err_t err;
   grub_efi_guid_t smbios = GRUB_EFI_SMBIOS_TABLE_GUID;
+  grub_efi_guid_t smbios3 = GRUB_EFI_SMBIOS3_TABLE_GUID;
   grub_efi_guid_t acpi20 = GRUB_EFI_ACPI_20_TABLE_GUID;
   grub_efi_guid_t acpi = GRUB_EFI_ACPI_TABLE_GUID;
 
   err = grub_efiemu_unregister_configuration_table (smbios);
+  if (err)
+    return err;
+  err = grub_efiemu_unregister_configuration_table (smbios3);
   if (err)
     return err;
   err = grub_efiemu_unregister_configuration_table (acpi);
@@ -43,17 +47,17 @@ grub_machine_efiemu_init_tables (void)
   if (err)
     return err;
 
-  table = grub_acpi_get_rsdpv1 ();
+  table = grub_smbios_get_eps ();
   if (table)
     {
-      err = grub_efiemu_register_configuration_table (acpi, 0, 0, table);
+      err = grub_efiemu_register_configuration_table (smbios, 0, 0, table);
       if (err)
 	return err;
     }
-  table = grub_acpi_get_rsdpv2 ();
+  table = grub_smbios_get_eps3 ();
   if (table)
     {
-      err = grub_efiemu_register_configuration_table (acpi20, 0, 0, table);
+      err = grub_efiemu_register_configuration_table (smbios3, 0, 0, table);
       if (err)
 	return err;
     }

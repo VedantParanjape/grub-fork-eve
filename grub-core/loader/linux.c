@@ -5,6 +5,7 @@
 #include <grub/file.h>
 #include <grub/mm.h>
 #include <grub/safemath.h>
+#include <grub/tpm.h>
 
 struct newc_head
 {
@@ -321,7 +322,7 @@ grub_initrd_load (struct grub_linux_initrd_context *initrd_ctx,
 	  grub_initrd_close (initrd_ctx);
 	  return grub_errno;
 	}
-      grub_tpm_measure (ptr, cursize, GRUB_BINARY_PCR, "grub_initrd", "Initrd");
+      grub_tpm_measure (ptr, cursize, GRUB_BINARY_PCR, "grub_initrd");
       grub_print_error();
 
       ptr += cursize;

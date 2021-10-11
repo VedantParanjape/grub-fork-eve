@@ -61,13 +61,6 @@ grub_machine_efiemu_init_tables (void)
       if (err)
 	return err;
     }
-  table = grub_smbios_get_eps ();
-  if (table)
-    {
-      err = grub_efiemu_register_configuration_table (smbios, 0, 0, table);
-      if (err)
-	return err;
-    }
 
   return GRUB_ERR_NONE;
 }

@@ -47,18 +47,9 @@ static const struct grub_arg_option options[] =
   };
 
 static grub_ssize_t
-pseudo_read (struct grub_file *file, char *buf, grub_size_t len)
-{
-  grub_memcpy (buf, (grub_uint8_t *) file->data + file->offset, len);
-  return len;
-}
+pseudo_read (struct grub_file *file, char *buf, grub_size_t len);
 
-/* Filesystem descriptor.  */
-struct grub_fs pseudo_fs =
-  {
-    .name = "pseudo",
-    .fs_read = pseudo_read
-};
+struct grub_fs pseudo_fs;
 
 static grub_err_t
 read_packet_header (grub_file_t sig, grub_uint8_t *out_type, grub_size_t *len)

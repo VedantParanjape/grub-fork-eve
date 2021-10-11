@@ -36,6 +36,7 @@
 #include <grub/lib/cmdline.h>
 #include <grub/linux.h>
 #include <grub/safemath.h>
+#include <grub/tpm.h>
 
 GRUB_MOD_LICENSE ("GPLv3+");
 
@@ -161,7 +162,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
       goto fail;
     }
 
-  grub_tpm_measure (kernel, len, GRUB_BINARY_PCR, "grub_linux16", "Kernel");
+  grub_tpm_measure (kernel, len, GRUB_BINARY_PCR, "grub_linux16");
   grub_print_error();
 
   grub_memcpy (&lh, kernel, sizeof (lh));
@@ -375,14 +376,9 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   }
 
   len = grub_linux16_prot_size;
-<<<<<<< HEAD
   if (grub_file_read (file, grub_linux_prot_chunk, len) != len && !grub_errno)
     grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
 		argv[0]);
-=======
-  grub_memcpy (grub_linux_prot_chunk, kernel + kernel_offset, len);
-  kernel_offset += len;
->>>>>>> Merging CoreOS UEFI/GPT support
 
   if (grub_errno == GRUB_ERR_NONE)
     {

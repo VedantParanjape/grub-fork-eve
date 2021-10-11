@@ -194,7 +194,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
       goto fail;
     }
 
-  file = grub_file_open (argv[0]);
+  file = grub_file_open (argv[0], GRUB_FILE_TYPE_LINUX_KERNEL);
   if (! file)
     goto fail;
 
@@ -214,7 +214,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
       goto fail;
     }
 
-  grub_tpm_measure (kernel, filelen, GRUB_BINARY_PCR, "grub_linuxefi", "Kernel");
+  grub_tpm_measure (kernel, filelen, GRUB_BINARY_PCR, "grub_linuxefi");
   grub_print_error();
 
   if (! grub_linuxefi_secure_validate (kernel, filelen))
@@ -286,10 +286,11 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
 
   grub_memcpy (linux_cmdline, LINUX_IMAGE, sizeof (LINUX_IMAGE));
   grub_create_loader_cmdline (argc, argv,
-				      linux_cmdline
-				      + sizeof (LINUX_IMAGE) - 1,
-				      lh.cmdline_size
-				      - (sizeof (LINUX_IMAGE) - 1));
+				      linux_cmdline +
+                sizeof (LINUX_IMAGE) - 1,
+				      lh.cmdline_size -
+                (sizeof (LINUX_IMAGE) - 1),
+              GRUB_VERIFY_KERNEL_CMDLINE);
 
   lh.cmd_line_ptr = (grub_uint32_t)(grub_addr_t)linux_cmdline;
 

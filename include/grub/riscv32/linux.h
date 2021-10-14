@@ -19,7 +19,7 @@
 #ifndef GRUB_RISCV32_LINUX_HEADER
 #define GRUB_RISCV32_LINUX_HEADER 1
 
-#define GRUB_LINUX_RISCV_MAGIC_SIGNATURE 0x52534356 /* 'RSCV' */
+#define GRUB_LINUX_RISCV_MAGIC_SIGNATURE 0x05435352 /* little endian, 'RSC\x05' */
 
 /* From linux/Documentation/riscv/booting.txt */
 struct linux_riscv_kernel_header
